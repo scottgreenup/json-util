@@ -3,71 +3,104 @@ package json
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
-	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 )
 
-type Handler func(path, key string, value interface{})
-
-type Object map[string]Value
+type Object struct {
+	value *Value
+}
 
 func NewObject(raw []byte) (*Object, error) {
-
 	var jsonObject map[string]interface{}
 
 	if err := json.Unmarshal(raw, &jsonObject); err != nil {
 		return nil, err
 	}
 
-	return nil, nil
+	value, err := NewValue(jsonObject)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Object{
+		value: value,
+	}, nil
 }
 
-type Array []Value
+func joinPath(path, suffix string) string {
+	if strings.HasSuffix(path, ".") {
+		return path + suffix
+	}
+	return path + "." + suffix
+}
 
-func walk(values map[string]interface{}, handler Handler, path string, pathSuffix string) error {
-	handler(path, pathSuffix, values)
+func joinIndex(path string, index int) string {
+	if strings.HasSuffix("path", ".") {
+		path = path[:len(path)-1]
+	}
 
-	for k, v := range values {
+	return fmt.Sprintf("%s[%d]", path, index)
+}
 
-		currentPath := fmt.Sprintf("%s.%s", path, k)
+func (o *Object) Walk(handler Handler) {
+	o.walk(o.value, handler, ".")
+}
 
-		t := reflect.TypeOf(v)
-		if t == nil {
-			return errors.Errorf("%q: Unknown type %+v", currentPath, v)
+func (o *Object) walkObject(value *Value, handler Handler, path string) error {
+	m, ok := value.Value.(map[string]interface{})
+	if !ok {
+		return errors.Errorf("received a non-object: %+v", value.Value)
+	}
+
+	for k, v := range m {
+		currPath := joinPath(path, k)
+
+		value, err := NewValue(v)
+		if err != nil {
+			return err
 		}
 
-		switch t.Kind() {
-		case reflect.Map:
-			jsonMap, ok := v.(map[string]interface{})
-			if !ok {
-				return errors.Errorf("%q: Couldn't process as map: %+v", currentPath, v)
-			}
-
-			return walk(jsonMap, handler, currentPath, k)
-
-		case reflect.Slice:
-			k, err := strconv.Atoi(k)
-			if err != nil {
-				return errors.Errorf("%q: Expected index for slice", currentPath)
-			}
-
-			jsonSlice, ok := v.([]interface{})
-			if !ok {
-				return errors.Errorf("%q: Unknown slice, won't be able to get index", currentPath)
-			}
-
-			if k >= len(jsonSlice) {
-				return errors.Errorf("%q: Index out of bounds %q > len=%d", currentPath, k, len(jsonSlice))
-			}
-
-			// walk
-			return nil
+		if err := o.walk(value, handler, currPath); err != nil {
+			return err
 		}
-
-		return errors.Errorf("Unhandled kind %q", t.Kind().String())
 	}
 
 	return nil
+}
+
+func (o *Object) walkArray(value *Value, handler Handler, path string) error {
+	a, ok := value.Value.([]interface{})
+	if !ok {
+		return errors.Errorf("received a non-array: %+v", value.Value)
+	}
+
+	for i, v := range a {
+		currPath := joinIndex(path, i)
+
+		value, err := NewValue(v)
+		if err != nil {
+			return err
+		}
+
+		if err := o.walk(value, handler, currPath); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (o *Object) walk(value *Value, handler Handler, path string) error {
+	handler(path, value)
+
+	switch value.Type {
+	case ValueTypeArray:
+		return o.walkArray(value, handler, path)
+	case ValueTypeObject:
+		return o.walkObject(value, handler, path)
+	default:
+		return nil
+	}
 }

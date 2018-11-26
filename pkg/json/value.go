@@ -37,6 +37,7 @@ func NewValue(v interface{}) (*Value, error) {
 		return nil, errors.Errorf("Unknown type of value: %+v", v)
 	}
 
+	// TODO: Are all numbers just float64?
 	lut := map[reflect.Kind]ValueType{
 		reflect.Bool:    ValueTypeBoolean,
 		reflect.Float32: ValueTypeNumber,
