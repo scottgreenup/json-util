@@ -16,9 +16,12 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/scottgreenup/json-search/pkg/json"
 	"github.com/spf13/cobra"
 )
 
@@ -41,10 +44,13 @@ var findCmd = &cobra.Command{
 	},
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
+			fmt.Println("HERE")
 			if IsPipe(os.Stdin) {
 				options.file = os.Stdin
+				fmt.Println("HERE IN THE IF")
+			} else {
+				return errors.New("requires at least 1 file as an argument")
 			}
-			return errors.New("requires at least 1 file as an argument")
 		} else {
 			fi, err := os.Stat(args[0])
 			if err != nil {
@@ -76,15 +82,89 @@ var options findCmdOptions
 func init() {
 	rootCmd.AddCommand(findCmd)
 	findCmd.Flags().StringVarP(&options.key, "key", "k", "", "The prefix of keys you want to find")
-	findCmd.Flags().StringVarP(&options.value, "value", "v", "", "The prefix of values you want to find")
 	findCmd.Flags().BoolVarP(&options.index, "index", "i", false, "Provide the actual index in the JSON path")
 }
 
-func findCmdRun() {
-	fmt.Println(options.key)
-	fmt.Println(options.value)
-	fmt.Println(options.index)
+func findCmdRun() error {
+	if options.key == "" {
+		return errors.New("No 'key' to search for was provided")
+	}
 
-	fmt.Println(options.file == nil)
-	fmt.Println(options.filename)
+	var file *os.File
+
+	if options.file != nil {
+		file = options.file
+	} else if len(options.filename) > 0 {
+		var err error
+		file, err = os.Open(options.filename)
+		if err != nil {
+			return err
+		}
+	} else {
+		return errors.New("no file provided")
+	}
+
+	input, err := ioutil.ReadAll(file)
+	if err != nil {
+		return err
+	}
+
+	obj, err := json.NewObject(input)
+	if err != nil {
+		return err
+	}
+
+	getSuffix := func(x string) string {
+		splat := strings.Split(x, ".")
+		return splat[len(splat)-1]
+	}
+
+	removeIndex := func(x string) string {
+		m := make([]rune, 0)
+		inside := false
+		for _, c := range x {
+			if c == '[' {
+				m = append(m, c)
+				inside = true
+			} else if c == ']' {
+				m = append(m, c)
+				inside = false
+			} else if !inside {
+				m = append(m, c)
+			}
+		}
+		return string(m)
+	}
+
+	withIndex := func(path string, value *json.Value) {
+		key := getSuffix(path)
+		if key == options.key {
+			fmt.Println(path)
+		}
+	}
+
+	withoutIndexCache := make([]string, 0)
+	withoutIndex := func(path string, value *json.Value) {
+		key := getSuffix(path)
+		if key == options.key {
+			indexless := removeIndex(path)
+			for _, cacheValue := range withoutIndexCache {
+				if cacheValue == indexless {
+					return
+				}
+			}
+			withoutIndexCache = append(withoutIndexCache, indexless)
+		}
+	}
+
+	if !options.index {
+		obj.Walk(withoutIndex)
+		for _, cacheValue := range withoutIndexCache {
+			fmt.Println(cacheValue)
+		}
+	} else {
+		obj.Walk(withIndex)
+	}
+
+	return nil
 }
