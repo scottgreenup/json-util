@@ -2,11 +2,8 @@ package json
 
 import (
 	"encoding/json"
-	"flag"
-	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"reflect"
 	"strconv"
 
@@ -82,50 +79,3 @@ func (f *Node) Get(key string) (*Node, error) {
 	return nil, errors.Errorf("Unhandled kind %q", t.Kind().String())
 }
 
-func main() {
-	filenamePtr := flag.String("f", "", "The path to the file for parsing")
-	flag.Parse()
-
-	fi, err := os.Stdin.Stat()
-	if err != nil {
-		panic(err)
-	}
-
-	var f *os.File
-
-	if (fi.Mode() & os.ModeNamedPipe) != 0 {
-		f = os.Stdin
-	} else if len(*filenamePtr) > 0 {
-		var err error
-		f, err = os.Open(*filenamePtr)
-		if err != nil {
-			panic(err)
-		}
-	} else {
-		fmt.Println("Usage:")
-		fmt.Println("  cat file.json | jgrep")
-		fmt.Println("  jgrep -f ./file.json")
-		return
-	}
-
-	var foo *Node
-	foo = NewFooFromReader(f)
-	foo, err = foo.Get("spec")
-	if err != nil {
-		panic(err)
-	}
-	foo, err = foo.Get("config")
-	if err != nil {
-		panic(err)
-	}
-	foo, err = foo.Get("0")
-	if err != nil {
-		panic(err)
-	}
-	foo, err = foo.Get("scope")
-	if err != nil {
-		panic("Fucked on 0")
-	}
-
-	fmt.Println(foo.root)
-}

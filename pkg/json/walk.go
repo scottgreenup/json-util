@@ -44,8 +44,8 @@ func joinIndex(path string, index int) string {
 	return fmt.Sprintf("%s[%d]", path, index)
 }
 
-func (o *Object) Walk(handler Handler) {
-	o.walk(o.value, handler, ".")
+func (o *Object) Walk(handler Handler) (error) {
+	return o.walk(o.value, handler, ".")
 }
 
 func (o *Object) walkObject(value *Value, handler Handler, path string) error {

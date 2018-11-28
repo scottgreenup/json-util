@@ -26,7 +26,9 @@ var findCmd = &cobra.Command{
 	Short: "Find the JSON path to bits of the JSON blob",
 	Long:  "Find the JSON path to bits of the JSON blob",
 	Run: func(cmd *cobra.Command, args []string) {
-		findCmdRun()
+		if err := findCmdRun(); err != nil {
+			fmt.Println(err)
+		}
 	},
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
@@ -41,7 +43,7 @@ var findCmd = &cobra.Command{
 				return err
 			}
 
-			if fi.Mode().IsRegular() == false {
+			if !fi.Mode().IsRegular() {
 				return errors.Errorf("%q is not a file", args[0])
 			}
 
@@ -54,7 +56,6 @@ var findCmd = &cobra.Command{
 
 type findCmdOptions struct {
 	key   string
-	value string
 	index bool
 
 	file     *os.File
@@ -142,13 +143,14 @@ func findCmdRun() error {
 	}
 
 	if !options.index {
-		obj.Walk(withoutIndex)
+		if err := obj.Walk(withoutIndex); err != nil {
+			return err
+		}
 		for _, cacheValue := range withoutIndexCache {
 			fmt.Println(cacheValue)
 		}
-	} else {
-		obj.Walk(withIndex)
+		return nil
 	}
 
-	return nil
+	return obj.Walk(withIndex)
 }
