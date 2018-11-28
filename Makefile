@@ -12,7 +12,7 @@ setup-common:
 
 .PHONY: setup-ci
 setup-ci: setup-common
-	curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s v1.12.3
+	curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(GOPATH)/bin v1.12.3
 
 .PHONY: fmt
 fmt:
