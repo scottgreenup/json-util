@@ -6,7 +6,8 @@ os:
   - linux
 
 install:
-  - make setup
+  - make setup-ci
+  - make lint
 
 script:
   - make test
