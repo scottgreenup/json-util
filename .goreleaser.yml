@@ -21,6 +21,9 @@ builds:
       - CGO_ENABLED=0
     ldflags: -s -w
 
+sign:
+  artificats: checksum
+
 archive:
   format: tar.gz
   wrap_in_directory: true
