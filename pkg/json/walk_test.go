@@ -29,7 +29,7 @@ func TestPaths(t *testing.T) {
 	object, err := NewObject(data)
 	require.NoError(t, err)
 
-	object.Walk(handler)
+	require.NoError(t, object.Walk(handler))
 }
 
 func StringSliceDiff(x []string, y []string) []string {
@@ -62,7 +62,7 @@ func TestPathEnumeration(t *testing.T) {
 
 		object, err := NewObject(rawJSON)
 		require.NoError(t, err)
-		object.Walk(handler)
+		require.NoError(t, object.Walk(handler))
 
 		extraFound := StringSliceDiff(foundPaths, expectedPaths)
 		require.Len(t, extraFound, 0, "%+v", extraFound)

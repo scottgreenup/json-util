@@ -1,17 +1,3 @@
-// Copyright © 2018 NAME HERE <EMAIL ADDRESS>
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package cmd
 
 import (
@@ -21,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/scottgreenup/json-search/pkg/json"
+	"github.com/scottgreenup/json-util/pkg/json"
 	"github.com/spf13/cobra"
 )
 
@@ -40,14 +26,14 @@ var findCmd = &cobra.Command{
 	Short: "Find the JSON path to bits of the JSON blob",
 	Long:  "Find the JSON path to bits of the JSON blob",
 	Run: func(cmd *cobra.Command, args []string) {
-		findCmdRun()
+		if err := findCmdRun(); err != nil {
+			fmt.Println(err)
+		}
 	},
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
-			fmt.Println("HERE")
 			if IsPipe(os.Stdin) {
 				options.file = os.Stdin
-				fmt.Println("HERE IN THE IF")
 			} else {
 				return errors.New("requires at least 1 file as an argument")
 			}
@@ -57,7 +43,7 @@ var findCmd = &cobra.Command{
 				return err
 			}
 
-			if fi.Mode().IsRegular() == false {
+			if !fi.Mode().IsRegular() {
 				return errors.Errorf("%q is not a file", args[0])
 			}
 
@@ -70,7 +56,6 @@ var findCmd = &cobra.Command{
 
 type findCmdOptions struct {
 	key   string
-	value string
 	index bool
 
 	file     *os.File
@@ -158,13 +143,14 @@ func findCmdRun() error {
 	}
 
 	if !options.index {
-		obj.Walk(withoutIndex)
+		if err := obj.Walk(withoutIndex); err != nil {
+			return err
+		}
 		for _, cacheValue := range withoutIndexCache {
 			fmt.Println(cacheValue)
 		}
-	} else {
-		obj.Walk(withIndex)
+		return nil
 	}
 
-	return nil
+	return obj.Walk(withIndex)
 }
